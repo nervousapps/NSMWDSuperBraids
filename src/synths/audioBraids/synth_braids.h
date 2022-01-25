@@ -34,6 +34,18 @@ public:
     pitch = pitchbraids;
   }
 
+  int16_t get_braids_color() {
+    return color;
+  }
+
+  int16_t get_braids_timbre() {
+    return timbre;
+  }
+
+  int16_t get_braids_pitch() {
+    return pitch;
+  }
+
   inline void init_braids(){
     // Global used to trigger the next buffer to render
     // wait = 0;
@@ -45,15 +57,16 @@ public:
     osc.Strike();
   }
 
-  volatile int16_t timbre = 0;
-  volatile int16_t color = 0;
-
   virtual void update(void);
 
 private:
   MacroOscillator osc;
 
   // Globals that define the parameters of the oscillator
+  volatile int16_t timbre = 0;
+  volatile int16_t color = 0;
+  volatile int16_t previous_timbre = 0;
+  volatile int16_t previous_color = 0;
   volatile int16_t pitch,pre_pitch;
   volatile int16_t shapebraids = 0;
 };

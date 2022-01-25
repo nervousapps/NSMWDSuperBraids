@@ -51,6 +51,7 @@ There are several firmwares for this motherboard:
 - NervousSuperSynth (https://github.com/nervousapps/NervousSuperSynth/tree/common_base)
 - MicroDexed (https://codeberg.org/nervousapps/MicroDexed/src/branch/nervoussupermother)
 - SuperBraids (THIS ONE)
+    - MUST set AUDIO_BLOCK_SAMPLES to 16 or 32 (max) in AudioStream.h
 
 # Compilation
 PlatformIO or Teensyduino

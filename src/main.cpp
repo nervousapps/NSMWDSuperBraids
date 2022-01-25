@@ -1,3 +1,5 @@
+// MUST set AUDIO_BLOCK_SAMPLES to 16 or 32 (max) in AudioStream.h
+
 #include <Arduino.h>
 #include <Wire.h>
 #include <MIDI.h>
@@ -60,7 +62,7 @@ FLASHMEM void setup() {
   analogReadAveraging(16);
 
   // Init audio
-  AudioMemory(500);
+  AudioMemory(300);
 
   AudioNoInterrupts();
 
@@ -89,9 +91,7 @@ FLASHMEM void setup() {
 
   setupSynths();
 
-  AudioInterrupts();
-
-  init_sd_card();
+  // init_sd_card();
 
   // Init device NervousSuperMother
   byte controls[7] = {0,1,2,3,4,5,6};
@@ -118,6 +118,7 @@ FLASHMEM void setup() {
   }
   delay(100);
 
+  AudioInterrupts();
 }
 
 void loop() {
