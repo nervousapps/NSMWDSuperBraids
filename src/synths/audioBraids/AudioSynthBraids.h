@@ -1,6 +1,7 @@
 //************LIBRARIES USED**************
 
 #include "synth_braids.h"
+#include "CircularBuffer.h"
 
 AudioSynthBraids         synthBraids;
 AudioEffectEnvelope      envelopeBraids;
@@ -158,14 +159,38 @@ const char* const shape_values[] PROGMEM = {
 };
 
 
+//Create midi note array...
+String notes[200];
+void makeArray(void) {
+    int octave;//octave is 0 - 8;
+    
+    const String note_substring[12] = 
+    {
+    "C","C#","D","D#",
+    "E","F","F#","G",
+    "G#","A","A#","B"
+    };
+    
+    for(int noteNum=0; noteNum<=108;noteNum++){
+        octave = noteNum /12;
+        notes[noteNum] = (note_substring[noteNum%12]+String(octave));
+    } 
+}
+
 // Handles note on events
+int note_counter = 0;
+// CircularBuffer<String,20> note_line;
+String line = "";
 void braidsOnNoteOn(byte channel, byte note, byte velocity){
     // If the velocity is larger than zero, means that is turning on
     if(velocity){
         int pitch = (note << 7) + fine_pitch;
         synthBraids.set_braids_pitch(pitch);
-        String line = "PitchMidi : " + String(pitch);
-        // device->updateLine(2, line);
+        line = line + notes[note];
+        if(line.length()>20){
+          line = "";
+        }
+        device->updateLine(2, line);
         envelopeBraids.noteOn();
     }
 }
@@ -178,7 +203,13 @@ void braidsOnNoteOff(byte channel, byte note, byte velocity){
 void braidsChangeShape(byte inputIndex, long value){
   shape = corresponding_shape[int(value)];
   synthBraids.set_braids_shape(int(shape));
-  device->updateLine(1, String(int(value)) +" : " + String(shape_values[int(value)]));
+  if(value == 0){
+    device->updateLine(1, String(shape_values[57-1]) + "  ->" + String(shape_values[int(value)]) + "<-  " + String(shape_values[int(value)+1]));
+  }else if (value > 56){
+    device->updateLine(1, String(shape_values[int(value)-1]) + "  ->" + String(shape_values[int(value)]) + "<-  " + String(shape_values[int(value)+1]));
+  }else{
+    device->updateLine(1, String(shape_values[int(value)-1]) + "  ->" + String(shape_values[int(value)]) + "<-  " + String(shape_values[0]));
+  }
 }
 
 void braidsChangeMux(byte inputIndex, unsigned int value, int diffToPrevious)
@@ -190,14 +221,14 @@ void braidsChangeMux(byte inputIndex, unsigned int value, int diffToPrevious)
   if(mapped_value>0){
     switch(inputIndex){
       case SLIDE1:
-      device->updateLine(2, "C:" + String(mapped_value));
+      // device->updateLine(2, "C:" + String(mapped_value));
       // AudioNoInterrupts();
       synthBraids.set_braids_color(mapped_value);
       // AudioInterrupts();
       break;
 
       case SLIDE2:
-      device->updateLine(2, "T:" + String(mapped_value));
+      // device->updateLine(2, "T:" + String(mapped_value));
       // AudioNoInterrupts();
       synthBraids.set_braids_timbre(mapped_value);
       // AudioInterrupts();
@@ -210,7 +241,7 @@ void braidsChangeMux(byte inputIndex, unsigned int value, int diffToPrevious)
           127,
           0,
           16383);
-      device->updateLine(2, "P:" + String(mapped_value));
+      // device->updateLine(2, "P:" + String(mapped_value));
       // AudioNoInterrupts();
       fine_pitch = mapped_value;
       // AudioInterrupts();
@@ -223,7 +254,7 @@ void braidsChangeMux(byte inputIndex, unsigned int value, int diffToPrevious)
           127,
           10.5,
           20);
-        device->updateLine(2, "Attack : " + String(mapped_value));
+        // device->updateLine(2, "Attack : " + String(mapped_value));
         envelopeBraids.attack(mapped_value);
       break;
 
@@ -234,7 +265,7 @@ void braidsChangeMux(byte inputIndex, unsigned int value, int diffToPrevious)
           127,
           10.5,
           11880);
-        device->updateLine(2, "Decay : " + String(mapped_value));
+        // device->updateLine(2, "Decay : " + String(mapped_value));
         envelopeBraids.decay(mapped_value);
       break;
 
@@ -245,7 +276,7 @@ void braidsChangeMux(byte inputIndex, unsigned int value, int diffToPrevious)
           127,
           10.5,
           11880);
-        device->updateLine(2, "Sustain : " + String(mapped_value));
+        // device->updateLine(2, "Sustain : " + String(mapped_value));
         envelopeBraids.sustain(mapped_value);
       break;
 
@@ -256,7 +287,7 @@ void braidsChangeMux(byte inputIndex, unsigned int value, int diffToPrevious)
           127,
           10.5,
           11880/2);
-        device->updateLine(2, "Release : " + String(mapped_value));
+        // device->updateLine(2, "Release : " + String(mapped_value));
         envelopeBraids.release(mapped_value);
       break;
 
@@ -268,7 +299,7 @@ void braidsChangeMux(byte inputIndex, unsigned int value, int diffToPrevious)
           0,
           10);
         f_mapped_value = mapped_value/10.0;
-        device->updateLine(2, "Roomsize : " + String(f_mapped_value));
+        // device->updateLine(2, "Roomsize : " + String(f_mapped_value));
         freeverbsBraids.roomsize(f_mapped_value);
       break;
 
@@ -280,7 +311,7 @@ void braidsChangeMux(byte inputIndex, unsigned int value, int diffToPrevious)
           0,
           11);
         f_mapped_value = mapped_value/10.0;
-        device->updateLine(2, "Damping : " + String(f_mapped_value));
+        // device->updateLine(2, "Damping : " + String(f_mapped_value));
         freeverbsBraids.damping(f_mapped_value);
       break;
 
@@ -291,7 +322,7 @@ void braidsChangeMux(byte inputIndex, unsigned int value, int diffToPrevious)
           127,
           0,
           10000);
-        device->updateLine(2, "Cutoff : " + String(mapped_value));
+        // device->updateLine(2, "Cutoff : " + String(mapped_value));
         effectfilterBraids.frequency(mapped_value);
       break;
 
@@ -303,7 +334,7 @@ void braidsChangeMux(byte inputIndex, unsigned int value, int diffToPrevious)
           7,
           50);
         f_mapped_value = mapped_value/10.0;
-        device->updateLine(2, "Res : " + String(f_mapped_value));
+        // device->updateLine(2, "Res : " + String(f_mapped_value));
         effectfilterBraids.resonance(f_mapped_value);
       break;
     }
@@ -315,7 +346,6 @@ void braidsOnCV(byte inputIndex, unsigned int value, int diffToPrevious) {
   String line = "";
   switch(inputIndex){
     case 0:
-    mapped_value = (synthBraids.get_braids_color() + mapped_value)/2;
     line = "ColorCV : " + String(mapped_value);
     // AudioNoInterrupts();
     synthBraids.set_braids_color(mapped_value);
@@ -325,7 +355,7 @@ void braidsOnCV(byte inputIndex, unsigned int value, int diffToPrevious) {
     case 1:
     line = "TimbreCV : " + String(mapped_value);
     // AudioNoInterrupts();
-    synthBraids.set_braids_timbre((synthBraids.get_braids_timbre() + mapped_value)/2);
+    synthBraids.set_braids_timbre(mapped_value);
     // AudioInterrupts();
     break;
 
@@ -357,7 +387,7 @@ void braidsOnCV(byte inputIndex, unsigned int value, int diffToPrevious) {
     break;
 
   }
-  device->updateLine(2, line);
+  // device->updateLine(2, line);
 }
 
 void braidsOnTrigger(byte inputIndex) {
@@ -402,6 +432,8 @@ void setFilterHLP(byte index, bool value){
 
 //************SETUP**************
 FLASHMEM void setupAudioBraidsControls() {
+  makeArray();
+
   for(byte i =0; i<4; i++){
     device->setHandleCVChange(i, braidsOnCV);
   }

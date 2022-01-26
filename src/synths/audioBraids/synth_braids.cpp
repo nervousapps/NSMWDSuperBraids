@@ -9,7 +9,7 @@ void AudioSynthBraids::update(void)
 	memset(sync_buffer, 0, sizeof(sync_buffer));
 	block = allocate();
 	if (block == NULL){
-		osc.Strike();
+		// osc.Strike();
 		return;
 	}
 	if(pre_pitch!=pitch){

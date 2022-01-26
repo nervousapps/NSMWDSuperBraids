@@ -20,6 +20,11 @@ AudioOutputI2S           i2s1;           //xy=686,170
 AudioInputI2S            input_i2s;           //xy=361,355
 AudioOutputPT8211_2      pt8211_2_1;     //xy=703,281
 
+AudioConnection          inputPatchCord1(input_i2s, 1, mainMix_LSG, 1);
+AudioConnection          inputPatchCord2(input_i2s, 1, mainMix_RSG, 1);
+AudioConnection          inputPatchCord3(input_i2s, 1, mainMix_LPT, 1);
+AudioConnection          inputPatchCord4(input_i2s, 1, mainMix_RPT, 1);
+
 AudioConnection          patchCord1(mainMix_LSG, 0, i2s1, 0);
 AudioConnection          patchCord2(mainMix_RSG, 0, i2s1, 1);
 AudioConnection          patchCord3(mainMix_LPT, 0, pt8211_2_1, 0);
@@ -47,6 +52,24 @@ void onVolChange(float value) {
   // sgtl5000_1.lineOutLevel(value/1000.0);
   // AudioInterrupts();
   // draw_progressbar(value/10);
+}
+
+void routInput(byte index, bool value){
+  AudioNoInterrupts();
+  if(value){
+    device->updateLine(2, "          CHAINED");
+    mainMix_LSG.gain(0,0.5); // Braids
+    mainMix_RSG.gain(0,0.5);
+    mainMix_LSG.gain(1,0.5); // Input
+    mainMix_RSG.gain(1,0.5);
+  }else {
+    device->updateLine(2, "          UNCHAINED");
+    mainMix_LSG.gain(0,0); // Braids
+    mainMix_RSG.gain(0,0);
+    mainMix_LSG.gain(1,1); // Input
+    mainMix_RSG.gain(1,1);
+  }
+  AudioInterrupts();
 }
 
 FLASHMEM void setup() {
@@ -86,8 +109,12 @@ FLASHMEM void setup() {
   // Set up mixers
   mainMix_LPT.gain(0,1); // Braids
   mainMix_RPT.gain(0,1);
-  mainMix_LSG.gain(0,1); // Braids
-  mainMix_RSG.gain(0,1);
+  mainMix_LPT.gain(1,0); // Braids
+  mainMix_RPT.gain(1,0);
+  mainMix_LSG.gain(0,0); // Braids
+  mainMix_RSG.gain(0,0);
+  mainMix_LSG.gain(1,1); // Input
+  mainMix_RSG.gain(1,1);
 
   setupSynths();
 
@@ -98,6 +125,7 @@ FLASHMEM void setup() {
   device->init(controls);
 
   device->setHandleVolChange(onVolChange);
+  device->setHandleSwitchChange(0, routInput);
 
   // Init MIDI and set handlers
   MIDI.begin(MIDI_CHANNEL_OMNI);
