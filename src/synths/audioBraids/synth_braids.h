@@ -65,8 +65,8 @@ private:
   // Globals that define the parameters of the oscillator
   volatile int16_t timbre = 0;
   volatile int16_t color = 0;
-  volatile int16_t previous_timbre = 0;
-  volatile int16_t previous_color = 0;
+  volatile int16_t pre_timbre = 0;
+  volatile int16_t pre_color = 0;
   volatile int16_t pitch,pre_pitch;
   volatile int16_t shapebraids = 0;
 };

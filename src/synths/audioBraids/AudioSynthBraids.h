@@ -20,6 +20,8 @@ AudioConnection          BraidspatchCord6(effectfilterBraids, 0, mixerBraids_L, 
 AudioConnection          BraidspatchCord7(effectfilterBraids, 0, mixerBraids_R, 1);
 AudioConnection          BraidspatchCord8(effectfilterBraids, 2, mixerBraids_L, 2);
 AudioConnection          BraidspatchCord9(effectfilterBraids, 2, mixerBraids_R, 2);
+AudioConnection          BraidspatchCord66(envelopeBraids, 0, mixerBraids_L, 3);
+AudioConnection          BraidspatchCord77(envelopeBraids, 0, mixerBraids_R, 3);
 AudioConnection          BraidspatchCord10(mixerBraids_L, 0, ampBraids_L, 0);
 AudioConnection          BraidspatchCord11(mixerBraids_R, 0, ampBraids_R, 0);
 
@@ -90,31 +92,31 @@ const int corresponding_shape[] = {
 
 const char* const shape_values[] PROGMEM = {
     "CSAW",
-    "^\x88\x8D_",
-    "\x88\x8A\x8C\x8D",
+    "^_^_",
+    "<><>",
     "FOLD",
-    "\x8E\x8E\x8E\x8E",
-    "SUB\x8C",
-    "SUB\x88",
-    "SYN\x8C",
-    "SYN\x88",
-    "\x88\x88x3",
-    "\x8C_x3",
+    "1010",
+    "SUB-",
+    "SUB^",
+    "SYN-",
+    "SYN^",
+    "x3x3",
+    "__x3",
     "/\\x3",
     "SIx3",
     "RING",
-    "\x88\x88" "CH",
-    "\x8C_CH",
+    "\\\\CH",
+    "\\_CH",
     "/\\CH",
     "SICH",
     "WTCH",
-    "\x88\x88x6",
-    "\x8C_x6",
+    "^^x6",
+    "^_x6",
     "/\\x6",
     "SIx6",
     "WTx6",
-    "\x88\x89\x88\x89",
-    "\x88\x88\x8E\x8E",
+    "*$*$",
+    "+=+=",
     "TOY*",
     "ZLPF",
     "ZPKF",
@@ -124,7 +126,7 @@ const char* const shape_values[] PROGMEM = {
     "VOWL",
     "VFOF",
     "HARM",
-    "FM  ",
+    " FM ",
     "FBFM",
     "WTFM",
     "PLUK",
@@ -158,8 +160,25 @@ const char* const shape_values[] PROGMEM = {
     "PRTC",    // "NAME" // For your algorithm
 };
 
+int note_counter = 0;
+CircularBuffer<String,20> buffer_line;
+String line = "";
+void displayBraids(){
+  int i = 0;
+  line = "";
+  while(line.length() < 20 && i < buffer_line.size()){
+    if(i == 0){
+      line += buffer_line[i];
+    }else{
+      line += " " + buffer_line[i];
+    }
+    i++;
+  }
+  device->updateLine(2, line);
+}
 
 //Create midi note array...
+// from https://gist.github.com/unohee/8f9b70d4ee336db3ebc624739960d161
 String notes[200];
 void makeArray(void) {
     int octave;//octave is 0 - 8;
@@ -173,25 +192,23 @@ void makeArray(void) {
     
     for(int noteNum=0; noteNum<=108;noteNum++){
         octave = noteNum /12;
-        notes[noteNum] = (note_substring[noteNum%12]+String(octave));
+        notes[noteNum] = note_substring[noteNum%12]+String(octave);
     } 
 }
 
 // Handles note on events
-int note_counter = 0;
-// CircularBuffer<String,20> note_line;
-String line = "";
 void braidsOnNoteOn(byte channel, byte note, byte velocity){
     // If the velocity is larger than zero, means that is turning on
     if(velocity){
         int pitch = (note << 7) + fine_pitch;
         synthBraids.set_braids_pitch(pitch);
-        line = line + notes[note];
-        if(line.length()>20){
-          line = "";
+        bool result = buffer_line.unshift(notes[note]);
+        if(not result){
+          buffer_line.pop();
+          buffer_line.unshift(notes[note]);
         }
-        device->updateLine(2, line);
         envelopeBraids.noteOn();
+        displayBraids();
     }
 }
 
@@ -205,30 +222,31 @@ void braidsChangeShape(byte inputIndex, long value){
   synthBraids.set_braids_shape(int(shape));
   if(value == 0){
     device->updateLine(1, String(shape_values[57-1]) + "  ->" + String(shape_values[int(value)]) + "<-  " + String(shape_values[int(value)+1]));
-  }else if (value > 56){
-    device->updateLine(1, String(shape_values[int(value)-1]) + "  ->" + String(shape_values[int(value)]) + "<-  " + String(shape_values[int(value)+1]));
-  }else{
+  }else if (value > 55){
     device->updateLine(1, String(shape_values[int(value)-1]) + "  ->" + String(shape_values[int(value)]) + "<-  " + String(shape_values[0]));
+  }else{
+    device->updateLine(1, String(shape_values[int(value)-1]) + "  ->" + String(shape_values[int(value)]) + "<-  " + String(shape_values[int(value)+1]));
   }
 }
 
+bool connected = false;
 void braidsChangeMux(byte inputIndex, unsigned int value, int diffToPrevious)
 {
   Serial.print((value));
   Serial.print("\n");
   int mapped_value = value << 8;
   float f_mapped_value = 0;
-  if(mapped_value>0){
+  if(mapped_value>=0){
     switch(inputIndex){
       case SLIDE1:
-      // device->updateLine(2, "C:" + String(mapped_value));
+      line = "COLOR";
       // AudioNoInterrupts();
       synthBraids.set_braids_color(mapped_value);
       // AudioInterrupts();
       break;
 
       case SLIDE2:
-      // device->updateLine(2, "T:" + String(mapped_value));
+      line = "TIMBRE";
       // AudioNoInterrupts();
       synthBraids.set_braids_timbre(mapped_value);
       // AudioInterrupts();
@@ -241,7 +259,7 @@ void braidsChangeMux(byte inputIndex, unsigned int value, int diffToPrevious)
           127,
           0,
           16383);
-      // device->updateLine(2, "P:" + String(mapped_value));
+      line = "FINE PITCH";
       // AudioNoInterrupts();
       fine_pitch = mapped_value;
       // AudioInterrupts();
@@ -254,7 +272,7 @@ void braidsChangeMux(byte inputIndex, unsigned int value, int diffToPrevious)
           127,
           10.5,
           20);
-        // device->updateLine(2, "Attack : " + String(mapped_value));
+        line = "ATTACK";
         envelopeBraids.attack(mapped_value);
       break;
 
@@ -265,7 +283,7 @@ void braidsChangeMux(byte inputIndex, unsigned int value, int diffToPrevious)
           127,
           10.5,
           11880);
-        // device->updateLine(2, "Decay : " + String(mapped_value));
+        line = "DECAY";
         envelopeBraids.decay(mapped_value);
       break;
 
@@ -276,7 +294,7 @@ void braidsChangeMux(byte inputIndex, unsigned int value, int diffToPrevious)
           127,
           10.5,
           11880);
-        // device->updateLine(2, "Sustain : " + String(mapped_value));
+        line = "SUSTAIN";
         envelopeBraids.sustain(mapped_value);
       break;
 
@@ -287,7 +305,7 @@ void braidsChangeMux(byte inputIndex, unsigned int value, int diffToPrevious)
           127,
           10.5,
           11880/2);
-        // device->updateLine(2, "Release : " + String(mapped_value));
+        line = "RELEASE";
         envelopeBraids.release(mapped_value);
       break;
 
@@ -299,7 +317,7 @@ void braidsChangeMux(byte inputIndex, unsigned int value, int diffToPrevious)
           0,
           10);
         f_mapped_value = mapped_value/10.0;
-        // device->updateLine(2, "Roomsize : " + String(f_mapped_value));
+        line = "ROOMSIZE";
         freeverbsBraids.roomsize(f_mapped_value);
       break;
 
@@ -311,7 +329,7 @@ void braidsChangeMux(byte inputIndex, unsigned int value, int diffToPrevious)
           0,
           11);
         f_mapped_value = mapped_value/10.0;
-        // device->updateLine(2, "Damping : " + String(f_mapped_value));
+        line = "DAMPING";
         freeverbsBraids.damping(f_mapped_value);
       break;
 
@@ -322,11 +340,34 @@ void braidsChangeMux(byte inputIndex, unsigned int value, int diffToPrevious)
           127,
           0,
           10000);
-        // device->updateLine(2, "Cutoff : " + String(mapped_value));
+        line = "CUTOFF";
         effectfilterBraids.frequency(mapped_value);
       break;
 
       case POT5:
+        if(mapped_value == 0){
+          AudioNoInterrupts();
+          BraidspatchCord6.disconnect();
+          BraidspatchCord7.disconnect();
+          BraidspatchCord8.disconnect();
+          BraidspatchCord9.disconnect();
+          BraidspatchCord66.connect();
+          BraidspatchCord77.connect();
+          AudioInterrupts();
+          connected = false;
+          line = "FILTER OFF";
+          break;
+        }else if(not connected){
+          AudioNoInterrupts();
+          BraidspatchCord6.connect();
+          BraidspatchCord7.connect();
+          BraidspatchCord8.connect();
+          BraidspatchCord9.connect();
+          BraidspatchCord66.disconnect();
+          BraidspatchCord77.disconnect();
+          AudioInterrupts();
+          connected = true;
+        }
         mapped_value = map(
           value,
           0,
@@ -334,10 +375,18 @@ void braidsChangeMux(byte inputIndex, unsigned int value, int diffToPrevious)
           7,
           50);
         f_mapped_value = mapped_value/10.0;
-        // device->updateLine(2, "Res : " + String(f_mapped_value));
+        line = "RESONNANCE";
         effectfilterBraids.resonance(f_mapped_value);
       break;
     }
+    if(buffer_line[0] != line){
+      bool result = buffer_line.unshift(line);
+      if(not result){
+        buffer_line.pop();
+        buffer_line.unshift(line);
+      }
+    }
+    displayBraids();
   }
 }
 
@@ -346,14 +395,14 @@ void braidsOnCV(byte inputIndex, unsigned int value, int diffToPrevious) {
   String line = "";
   switch(inputIndex){
     case 0:
-    line = "ColorCV : " + String(mapped_value);
+    line = "ColorCV";
     // AudioNoInterrupts();
     synthBraids.set_braids_color(mapped_value);
     // AudioInterrupts();
     break;
 
     case 1:
-    line = "TimbreCV : " + String(mapped_value);
+    line = "TimbreCV";
     // AudioNoInterrupts();
     synthBraids.set_braids_timbre(mapped_value);
     // AudioInterrupts();
@@ -366,7 +415,7 @@ void braidsOnCV(byte inputIndex, unsigned int value, int diffToPrevious) {
       0,
       0,
       16383);
-    line = "FinePitchCV : " + String(mapped_value);
+    line = "FinePitchCV";
     // AudioNoInterrupts();
     fine_pitch = mapped_value;
     // AudioInterrupts();
@@ -382,12 +431,18 @@ void braidsOnCV(byte inputIndex, unsigned int value, int diffToPrevious) {
       16383);
     int note = mapped_value + fine_pitch;
     synthBraids.set_braids_pitch(note);
-    line = "PitchCV : " + String(note);
+    line = "PitchCV";
     // AudioInterrupts();
     break;
-
   }
-  // device->updateLine(2, line);
+  if(buffer_line[0] != line){
+    bool result = buffer_line.unshift(line);
+    if(not result){
+      buffer_line.pop();
+      buffer_line.unshift(line);
+    }
+  }
+  displayBraids();
 }
 
 void braidsOnTrigger(byte inputIndex) {
@@ -401,33 +456,53 @@ void braidsOffTrigger(byte inputIndex) {
 void enableReverb(byte index, bool value){
   AudioNoInterrupts();
   if(value){
-    device->updateLine(2, "Reverb ON");
+    line = "Reverb ON";
     BraidspatchCord4.connect();
     BraidspatchCord5.connect();
   }else {
-    device->updateLine(2, "Reverb OFF");
+    line = "Reverb OFF";
     BraidspatchCord4.disconnect();
     BraidspatchCord5.disconnect();
   }
   AudioInterrupts();
+  if(buffer_line[0] != line){
+    bool result = buffer_line.unshift(line);
+    if(not result){
+      buffer_line.pop();
+      buffer_line.unshift(line);
+    }
+  }
+  displayBraids();
 }
 
 void setFilterHLP(byte index, bool value){
-  AudioNoInterrupts();
-  BraidspatchCord6.disconnect();
-  BraidspatchCord7.disconnect();
-  BraidspatchCord8.disconnect();
-  BraidspatchCord9.disconnect();
-  if(value){
-    device->updateLine(2, "Filter LP");
-    BraidspatchCord6.connect();
-    BraidspatchCord7.connect();
-  }else {
-    device->updateLine(2, "Filter HP");
-    BraidspatchCord8.connect();
-    BraidspatchCord9.connect();
+  if(connected){
+    AudioNoInterrupts();
+    BraidspatchCord6.disconnect();
+    BraidspatchCord7.disconnect();
+    BraidspatchCord8.disconnect();
+    BraidspatchCord9.disconnect();
+    if(value){
+      line = "Filter LP";
+      BraidspatchCord6.connect();
+      BraidspatchCord7.connect();
+    }else {
+      line = "Filter HP";
+      BraidspatchCord8.connect();
+      BraidspatchCord9.connect();
+    }
+    AudioInterrupts();
+  }else{
+    line = "FILTER OFF";
   }
-  AudioInterrupts();
+  if(buffer_line[0] != line){
+    bool result = buffer_line.unshift(line);
+    if(not result){
+      buffer_line.pop();
+      buffer_line.unshift(line);
+    }
+  }
+  displayBraids();
 }
 
 //************SETUP**************
@@ -463,6 +538,11 @@ FLASHMEM void setupAudioBraids() {
   AudioNoInterrupts();
   BraidspatchCord10.connect();
   BraidspatchCord11.connect();
+
+  BraidspatchCord6.connect();
+  BraidspatchCord7.connect();
+  BraidspatchCord66.disconnect();
+  BraidspatchCord77.disconnect();
 
   // Set up controls
   setupAudioBraidsControls();

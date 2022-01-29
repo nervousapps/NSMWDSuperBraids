@@ -16,7 +16,7 @@ void AudioSynthBraids::update(void)
 		osc.set_pitch(pitch);
 		pre_pitch = pitch;
 	}
-	if(previous_timbre != timbre || previous_color != color){
+	if(pre_timbre != timbre || pre_color != color){
 		osc.set_parameters(timbre,color);
 	}
 	osc.Render(sync_buffer, block->data, AUDIO_BLOCK_SAMPLES);
